@@ -15,12 +15,62 @@ admin.initializeApp({
 
 const db = admin.database();
 
-app.get('/test', (req, res) => {
+app.get('/', (req, res) => {
   res.status(200).send('OK');
 })
 
 // ユーザー認証かつアクセストークン登録
-app.get('/', (req, res) => {
+// app.get('/', (req, res) => {
+//     const code = req.query["code"];
+
+//     // 認可コードを使って、アクセストークンをリクエストする
+//     request({
+//         url: "https://slack.com/api/oauth.access",
+//         method: "POST",
+//         form: {
+//             client_id: process.env.SLACK_CLIENT_ID,
+//             client_secret: process.env.SLACK_CLIENT_SECRET,
+//             code: code,
+//             redirect_uri: process.env.REDIRECT_URI
+//         }
+//     }, async (error, response, body) => {
+//         // レスポンスからアクセストークンを取得する
+//         const param = JSON.parse(body);
+//         console.log(param);
+//         const userId = param['user_id'];
+//         const accessToken = param['access_token'];
+//         const web = new WebClient(accessToken);
+//         const channels = await web.conversations.list({ types: 'im' });
+//         var selfDmChannelId = "";
+//         var botDmChannelId = "";
+        
+//         for (const channel of channels.channels) {
+//           if (channel.user == userId) {
+//             selfDmChannelId = channel.id;
+//           }
+//           if (channel.user == process.env.SLACK_BOT_ID) {
+//             botDmChannelId = channel.id;
+//           }
+//         }
+
+//         console.log("Self DM ChannelID: " + selfDmChannelId);
+//         console.log("Bot DM ChannelID: " + botDmChannelId);
+        
+//         if (selfDmChannelId == "" || botDmChannelId == "") {
+//           res.status(500).send("NG");
+//         } else {
+//           const dateRef = db.ref('userInfos/' + userId);
+//           dateRef.set({
+//             userId: userId,
+//             accessToken: accessToken,
+//             selfDmChannelId: selfDmChannelId,
+//             botDmChannelId: botDmChannelId,
+//           });
+//           res.status(200).send('OK');
+//         }
+//     })
+// })
+app.get('/oauth_redirect', (req, res) => {
     const code = req.query["code"];
 
     // 認可コードを使って、アクセストークンをリクエストする
@@ -34,42 +84,62 @@ app.get('/', (req, res) => {
             redirect_uri: process.env.REDIRECT_URI
         }
     }, async (error, response, body) => {
-        // レスポンスからアクセストークンを取得する
-        const param = JSON.parse(body);
-        console.log(param);
-        const userId = param['user_id'];
-        const accessToken = param['access_token'];
-        const web = new WebClient(accessToken);
-        const channels = await web.conversations.list({ types: 'im' });
-        var selfDmChannelId = "";
-        var botDmChannelId = "";
-        
-        for (const channel of channels.channels) {
-          if (channel.user == userId) {
-            selfDmChannelId = channel.id;
-          }
-          if (channel.user == process.env.SLACK_BOT_ID) {
-            botDmChannelId = channel.id;
-          }
+        if (error) {
+            console.error('Request error:', error);
+            return res.status(500).send("Error requesting access token");
         }
 
-        console.log("Self DM ChannelID: " + selfDmChannelId);
-        console.log("Bot DM ChannelID: " + botDmChannelId);
-        
-        if (selfDmChannelId == "" || botDmChannelId == "") {
-          res.status(500).send("NG");
-        } else {
-          const dateRef = db.ref('userInfos/' + userId);
-          dateRef.set({
-            userId: userId,
-            accessToken: accessToken,
-            selfDmChannelId: selfDmChannelId,
-            botDmChannelId: botDmChannelId,
-          });
-          res.status(200).send('OK');
+        try {
+            // レスポンスからアクセストークンを取得する
+            const param = JSON.parse(body);
+            console.log(param);
+            if (!param.access_token) {
+                return res.status(500).send("Invalid response from OAuth endpoint");
+            }
+            const userId = param['user_id'];
+            const accessToken = param['access_token'];
+            const web = new WebClient(accessToken);
+
+            try {
+                const channels = await web.conversations.list({ types: 'im' });
+                var selfDmChannelId = "";
+                var botDmChannelId = "";
+                
+                for (const channel of channels.channels) {
+                    if (channel.user == userId) {
+                        selfDmChannelId = channel.id;
+                    }
+                    if (channel.user == process.env.SLACK_BOT_ID) {
+                        botDmChannelId = channel.id;
+                    }
+                }
+
+                console.log("Self DM ChannelID: " + selfDmChannelId);
+                console.log("Bot DM ChannelID: " + botDmChannelId);
+                
+                if (selfDmChannelId == "" || botDmChannelId == "") {
+                    res.status(500).send("DM Channel ID not found");
+                } else {
+                    const dateRef = db.ref('userInfos/' + userId);
+                    dateRef.set({
+                        userId: userId,
+                        accessToken: accessToken,
+                        selfDmChannelId: selfDmChannelId,
+                        botDmChannelId: botDmChannelId,
+                    });
+                    res.status(200).send('OK');
+                }
+            } catch (apiError) {
+                console.error('API error:', apiError);
+                res.status(500).send("Error fetching conversation list");
+            }
+        } catch (parseError) {
+            console.error('JSON parsing error:', parseError);
+            res.status(500).send("Error parsing JSON response");
         }
-    })
-})
+    });
+});
+
 
 function formatDate(date) {
   return moment(date).tz("Asia/Tokyo").format('YYYY-MM-DD');
