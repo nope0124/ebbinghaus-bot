@@ -220,11 +220,13 @@ async function sendMessages(userId, botDmChannelId) {
         
         // リマインドする
         for (const message of messagesArray) {
-          await slackClient.chat.postMessage({
-            channel: botDmChannelId,
-            text: message.text
-          });
-          console.log(message);
+          if (message.user == userId) {
+            await slackClient.chat.postMessage({
+              channel: botDmChannelId,
+              text: message.text
+            });
+            console.log(message);
+          }
         }
       } else {
         console.log('No messages found for the given date.');
