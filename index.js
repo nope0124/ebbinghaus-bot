@@ -384,15 +384,19 @@ function scheduleDaily(hour, minute, taskFunction) {
   }, timeout);
 }
 
-scheduleDaily(0, 0, async () => {
+scheduleDaily(0, 10, async () => {
   console.log('Run scheduleDaily.');
   // ユーザー一覧を取得
   const ref = db.ref('userInfos');
   const snapshot = await ref.once('value');
   if (snapshot.exists()) {
     const userInfos = snapshot.val();
+    const userInfosArray = Object.keys(userInfos).map(key => ({
+      ...userInfos[key],
+      key
+    }));
     // ユーザーごとに処理を行う
-    for (const userInfo of userInfos) {
+    for (const userInfo of userInfosArray) {
       const userId = userInfo['userId'];
       const selfDmChannelId = userInfo['selfDmChannelId'];
       const botDmChannelId = userInfo['botDmChannelId'];
