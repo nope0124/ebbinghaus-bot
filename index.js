@@ -384,7 +384,7 @@ function scheduleDaily(hour, minute, taskFunction) {
   }, timeout);
 }
 
-scheduleDaily(0, 10, async () => {
+scheduleDaily(0, 20, async () => {
   console.log('Run scheduleDaily.');
   // ユーザー一覧を取得
   const ref = db.ref('userInfos');
@@ -403,7 +403,7 @@ scheduleDaily(0, 10, async () => {
       const accessToken = userInfo['accessToken'];
       
       // 昨日の投稿を保存
-      registerYesterdayMessages(selfDmChannelId, accessToken);
+      registerYesterdayMessages(userId, selfDmChannelId, accessToken);
       // リマインド一覧を送信
       sendMessages(userId, botDmChannelId);
     }
