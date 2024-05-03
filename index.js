@@ -3,6 +3,7 @@ const moment = require('moment-timezone');
 const admin = require('firebase-admin');
 const request = require('request')
 const express = require('express');
+const crypto = require('crypto');
 const app = express();
 const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 const slackClient = new WebClient(process.env.SLACK_BOT_TOKEN);
@@ -140,6 +141,24 @@ app.get('/oauth_redirect', (req, res) => {
     });
 });
 
+const key = process.env.ENCRYPT_KEY; // 32バイトのキー（AES-256）
+const iv = process.env.ENCRYPT_IV; // 16バイトのIV（CBCモード）
+
+// 暗号化
+function encrypt(text, key, iv) {
+    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return encrypted;
+}
+
+// 復号化
+function decrypt(encryptedText, key, iv) {
+    const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+    let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
 
 function formatDate(date) {
   return moment(date).tz("Asia/Tokyo").format('YYYY-MM-DD');
@@ -180,7 +199,7 @@ async function registerYesterdayMessages(userId, selfDmChannelId, accessToken) {
     const futureDate = addDays(yesterday, interval);
     history.messages.forEach(message => {
       const newMessage = {
-        text: message.text,
+        text: encrypt(message.text, key, iv),
         user: message.user,
         ts: message.ts
       };
@@ -223,7 +242,7 @@ async function sendMessages(userId, botDmChannelId) {
           if (message.user == userId) {
             await slackClient.chat.postMessage({
               channel: botDmChannelId,
-              text: message.text
+              text: decrypt(message.text, key, iv)
             });
             console.log(message);
           }
@@ -266,7 +285,7 @@ async function registerAllMessages() {
           if (message.ts >= todayStart) continue;
           const futureDate = addDays(message.ts*1000, interval);
           const newMessage = {
-            text: message.text,
+            text: encrypt(message.text, key, iv),
             user: message.user,
             ts: message.ts
           };
@@ -298,7 +317,7 @@ async function debugRegisterMessages(targetUserId = process.env.NOPE_USER_ID) {
       for (let message of history.messages) {
         const futureDate = addDays(message.ts*1000, interval);
         const newMessage = {
-          text: message.text,
+          text: encrypt(message.text, key, iv),
           user: message.user,
           ts: message.ts
         };
@@ -353,7 +372,7 @@ async function debugSendMessages(targetUserId = process.env.NOPE_USER_ID) {
           for (const message of messagesArray) {
             await slackClient.chat.postMessage({
               channel: botDmChannelId,
-              text: message.text
+              text: decrypt(message.text, key, iv)
             });
             console.log(message);
           }
