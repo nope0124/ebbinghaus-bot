@@ -384,7 +384,7 @@ function scheduleDaily(hour, minute, taskFunction) {
   }, timeout);
 }
 
-scheduleDaily(0, 20, async () => {
+scheduleDaily(0, 0, async () => {
   console.log('Run scheduleDaily.');
   // ユーザー一覧を取得
   const ref = db.ref('userInfos');
