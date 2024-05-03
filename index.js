@@ -124,7 +124,7 @@ app.get('/oauth_redirect', (req, res) => {
                     const dateRef = db.ref('userInfos/' + userId);
                     dateRef.set({
                         userId: userId,
-                        accessToken: accessToken,
+                        accessToken: encrypt(accessToken, key, iv),
                         selfDmChannelId: selfDmChannelId,
                         botDmChannelId: botDmChannelId,
                     });
@@ -273,7 +273,7 @@ async function registerAllMessages() {
       const userId = userInfo['userId'];
       const selfDmChannelId = userInfo['selfDmChannelId'];
       const botDmChannelId = userInfo['botDmChannelId'];
-      const accessToken = userInfo['accessToken'];
+      const accessToken = decrypt(userInfo['accessToken'], key, iv);
       
       const web = new WebClient(accessToken);
       const history = await web.conversations.history({ channel: selfDmChannelId });
@@ -307,7 +307,7 @@ async function debugRegisterMessages(targetUserId = process.env.NOPE_USER_ID) {
     const userId = userInfo['userId'];
     const selfDmChannelId = userInfo['selfDmChannelId'];
     const botDmChannelId = userInfo['botDmChannelId'];
-    const accessToken = userInfo['accessToken'];
+    const accessToken = decrypt(userInfo['accessToken'], key, iv);
 
     const web = new WebClient(accessToken);
     const history = await web.conversations.history({ channel: selfDmChannelId });
@@ -341,7 +341,7 @@ async function debugSendMessages(targetUserId = process.env.NOPE_USER_ID) {
     const userId = userInfo['userId'];
     const selfDmChannelId = userInfo['selfDmChannelId'];
     const botDmChannelId = userInfo['botDmChannelId'];
-    const accessToken = userInfo['accessToken'];
+    const accessToken = decrypt(userInfo['accessToken'], key, iv);
     
     // かわいい
     await slackClient.chat.postMessage({
@@ -421,7 +421,7 @@ scheduleDaily(0, 0, async () => {
       const userId = userInfo['userId'];
       const selfDmChannelId = userInfo['selfDmChannelId'];
       const botDmChannelId = userInfo['botDmChannelId'];
-      const accessToken = userInfo['accessToken'];
+      const accessToken = decrypt(userInfo['accessToken'], key, iv);
       
       // 昨日の投稿を保存
       registerYesterdayMessages(userId, selfDmChannelId, accessToken);
